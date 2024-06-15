@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
+	"legal-referral-fanout-service/api"
 	db "legal-referral-fanout-service/db/sqlc"
 	"legal-referral-fanout-service/util"
 	"net/http"
@@ -38,7 +39,7 @@ func main() {
 	store := db.NewStore(connPool)
 
 	go func() {
-		err := CreateConsumer(context.Background(), store, config)
+		err := api.CreateConsumer(context.Background(), store, config)
 		if err != nil {
 			log.Error().Err(err).Msg("cannot create consumer")
 		}
