@@ -7,4 +7,7 @@ new_migration:
 sqlc:
 	sqlc generate
 
-.PHONY: server sqlc
+build:
+	GOOS=linux GOARCH=amd64 go build -o bin/application
+
+.PHONY: server sqlc, build

@@ -5,10 +5,18 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
-	"legal-referral-fanout-service/api"
 	db "legal-referral-fanout-service/db/sqlc"
 	"legal-referral-fanout-service/util"
+	"net/http"
 )
+
+func helloHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "Success")
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "Success")
+}
 
 func main() {
 
@@ -29,6 +37,19 @@ func main() {
 
 	store := db.NewStore(connPool)
 
-	err = api.CreateConsumer(context.Background(), store, config)
-	log.Error().Err(err).Msg("cannot create consumer")
+	go func() {
+		err := CreateConsumer(context.Background(), store, config)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot create consumer")
+		}
+	}()
+
+	http.HandleFunc("/health", healthCheck)
+	http.HandleFunc("/", healthCheck)
+	http.HandleFunc("/hello", helloHandler)
+	fmt.Println("Starting server at port 5000...")
+	if err := http.ListenAndServe(config.ServerAddress, nil); err != nil {
+		fmt.Println(err)
+	}
+
 }

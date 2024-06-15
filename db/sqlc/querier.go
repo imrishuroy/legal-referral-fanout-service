@@ -10,6 +10,7 @@ import (
 
 type Querier interface {
 	ListConnectedUserIDs(ctx context.Context, userID string) ([]interface{}, error)
+	ListConnectedUserIDs2(ctx context.Context, userID string) ([]string, error)
 	PostToNewsFeed(ctx context.Context, arg PostToNewsFeedParams) error
 }
 

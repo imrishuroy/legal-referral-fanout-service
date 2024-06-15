@@ -1,9 +1,9 @@
-package api
+package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	"github.com/rs/zerolog/log"
 	db "legal-referral-fanout-service/db/sqlc"
 	"legal-referral-fanout-service/util"
 	"os"
@@ -28,10 +28,10 @@ func CreateConsumer(ctx context.Context, store db.Store, config util.Config) err
 		"security.protocol": "SASL_SSL",
 		"sasl.mechanisms":   "PLAIN",
 		"group.id":          "confluentinc-kafka-go",
-		"auto.offset.reset": "earliest"})
+		"auto.offset.reset": "latest"})
 
 	if err != nil {
-		fmt.Printf("Failed to create consumer: %s", err)
+		log.Error().Err(err).Msg("cannot create consumer")
 		os.Exit(1)
 	}
 
@@ -50,19 +50,24 @@ func CreateConsumer(ctx context.Context, store db.Store, config util.Config) err
 	for run {
 		select {
 		case sig := <-sigchan:
-			fmt.Printf("Caught signal %v: terminating\n", sig)
+			log.Info().Msgf("Caught signal %v: terminating\n", sig)
 			run = false
 		default:
 			ev, err := consumer.ReadMessage(100 * time.Millisecond)
 			if err != nil {
+				//log.Error().Err(err).Msg("cannot read message")
 				// Errors are informational and automatically handled by the consumer
 				continue
 			}
-			fmt.Printf("Consumed event from topic %s: key = %-10s value = %s\n",
+			//fmt.Printf("Consumed event from topic %s: key = %-10s value = %s\n",
+			//	*ev.TopicPartition.Topic, string(ev.Key), string(ev.Value))
+
+			log.Info().Msgf("Consumed event from topic %s: key = %-10s value = %s\n",
 				*ev.TopicPartition.Topic, string(ev.Key), string(ev.Value))
 
 			err = postToNewsFeed(ctx, store, string(ev.Key), int32(ev.Value[0]))
 			if err != nil {
+				log.Error().Err(err).Msg("cannot post to news feed")
 				return err
 			}
 
@@ -114,6 +119,7 @@ func CreateConsumer(ctx context.Context, store db.Store, config util.Config) err
 	// closes the consumer connection
 	err = consumer.Close()
 	if err != nil {
+		log.Error().Err(err).Msg("cannot close consumer")
 		return err
 	}
 
@@ -122,19 +128,28 @@ func CreateConsumer(ctx context.Context, store db.Store, config util.Config) err
 }
 
 func postToNewsFeed(ctx context.Context, store db.Store, userID string, postID int32) error {
-	userIDs, err := store.ListConnectedUserIDs(ctx, userID)
+	// Initialize the userIDs slice with the given userID as the first element
+	userIDs := []string{userID}
+
+	// Get the list of connected user IDs
+	connectedUserIDs, err := store.ListConnectedUserIDs2(ctx, userID)
 	if err != nil {
+		log.Error().Err(err).Msg("cannot list connected user IDs")
 		return err
 	}
 
-	userIDs = append(userIDs, userID)
+	// Append the connected user IDs to the userIDs slice
+	userIDs = append(userIDs, connectedUserIDs...)
+
+	// Post to the news feed for each user ID
 	for _, id := range userIDs {
 		arg := db.PostToNewsFeedParams{
-			UserID: id.(string),
+			UserID: id,
 			PostID: postID,
 		}
 
 		if err := store.PostToNewsFeed(ctx, arg); err != nil {
+			log.Error().Err(err).Str("userID", id).Msg("cannot post to news feed")
 			return err
 		}
 	}

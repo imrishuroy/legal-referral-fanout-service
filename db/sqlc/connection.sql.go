@@ -38,3 +38,37 @@ func (q *Queries) ListConnectedUserIDs(ctx context.Context, userID string) ([]in
 	}
 	return items, nil
 }
+
+const listConnectedUserIDs2 = `-- name: ListConnectedUserIDs2 :many
+SELECT
+    recipient_id AS user_id
+FROM connections
+WHERE sender_id = $1::text
+
+UNION
+
+SELECT
+    sender_id AS user_id
+FROM connections
+WHERE recipient_id = $1::text
+`
+
+func (q *Queries) ListConnectedUserIDs2(ctx context.Context, userID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listConnectedUserIDs2, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
