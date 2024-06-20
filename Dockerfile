@@ -1,5 +1,7 @@
 FROM golang:1.22
 
+LABEL base.name = "legal-referral-fanout"
+
 WORKDIR /app
 
 # Copies everything from your root directory into /app
@@ -15,4 +17,4 @@ RUN go build -o /main
 EXPOSE 8080
 
 # Specifies the executable command that runs when the container starts
-CMD [ "/main" ]
+CMD ["/main"]

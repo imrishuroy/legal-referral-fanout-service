@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/imrishuroy/legal-referral-fanout-service/api"
+	db "github.com/imrishuroy/legal-referral-fanout-service/db/sqlc"
+	"github.com/imrishuroy/legal-referral-fanout-service/util"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
-	"legal-referral-fanout-service/api"
-	db "legal-referral-fanout-service/db/sqlc"
-	"legal-referral-fanout-service/util"
+
 	"net/http"
 )
 

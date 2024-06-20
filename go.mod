@@ -1,4 +1,4 @@
-module legal-referral-fanout-service
+module github.com/imrishuroy/legal-referral-fanout-service
 
 go 1.22
 

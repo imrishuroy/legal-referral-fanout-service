@@ -3,9 +3,9 @@ package api
 import (
 	"context"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	db "github.com/imrishuroy/legal-referral-fanout-service/db/sqlc"
+	"github.com/imrishuroy/legal-referral-fanout-service/util"
 	"github.com/rs/zerolog/log"
-	db "legal-referral-fanout-service/db/sqlc"
-	"legal-referral-fanout-service/util"
 	"os"
 	"os/signal"
 	"syscall"
