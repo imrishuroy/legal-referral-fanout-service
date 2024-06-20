@@ -48,7 +48,8 @@ func main() {
 	http.HandleFunc("/health", healthCheck)
 	http.HandleFunc("/", healthCheck)
 	http.HandleFunc("/hello", helloHandler)
-	fmt.Println("Starting server at port 5000...")
+	fmt.Println("Starting server at port 8080...")
+	log.Info().Msg("server address: " + config.ServerAddress)
 	if err := http.ListenAndServe(config.ServerAddress, nil); err != nil {
 		fmt.Println(err)
 	}
