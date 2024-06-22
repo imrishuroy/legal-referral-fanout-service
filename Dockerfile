@@ -1,8 +1,9 @@
 FROM golang:1.22
 
-LABEL base.name = "legal-referral-fanout"
-
 WORKDIR /app
+
+# Copy go.mod and go.sum to the WORKDIR
+COPY go.mod go.sum ./
 
 # Copies everything from your root directory into /app
 COPY . .

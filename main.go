@@ -26,9 +26,11 @@ func main() {
 
 	config, err := util.LoadConfig(".")
 	if err != nil {
+
 		log.Fatal().Msg("cannot connect to db:")
 	}
 
+	log.Info().Msg("DB Source: " + config.DBSource)
 	// db connection
 	connPool, err := pgxpool.New(context.Background(), config.DBSource)
 
@@ -49,7 +51,7 @@ func main() {
 	http.HandleFunc("/health", healthCheck)
 	http.HandleFunc("/", healthCheck)
 	http.HandleFunc("/hello", helloHandler)
-	fmt.Println("Starting server at port 8080...")
+	fmt.Println("Starting server at port 8000...")
 	log.Info().Msg("server address: " + config.ServerAddress)
 	if err := http.ListenAndServe(config.ServerAddress, nil); err != nil {
 		fmt.Println(err)
