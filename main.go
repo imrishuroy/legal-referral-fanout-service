@@ -12,12 +12,8 @@ import (
 	"net/http"
 )
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Success")
-}
-
 func healthCheck(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Success")
+	fmt.Fprint(w, "OK")
 }
 
 func main() {
@@ -50,11 +46,10 @@ func main() {
 
 	http.HandleFunc("/health", healthCheck)
 	http.HandleFunc("/", healthCheck)
-	http.HandleFunc("/hello", helloHandler)
-	fmt.Println("Starting server at port 8000...")
+	fmt.Println("Starting server at " + config.ServerAddress)
 	log.Info().Msg("server address: " + config.ServerAddress)
 	if err := http.ListenAndServe(config.ServerAddress, nil); err != nil {
-		fmt.Println(err)
+		log.Info().Err(err).Msg("cannot start server")
 	}
 
 }
