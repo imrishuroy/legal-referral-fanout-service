@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: legal-referral-ingress-http
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "api.sixteenbrains.studio"
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: legal-referral-fanout-service
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - "fanout.sixteenbrains.studio"
+      secretName: legal-referral-tls
