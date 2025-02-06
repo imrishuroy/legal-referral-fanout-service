@@ -1,28 +1,24 @@
-name: Deploy to production
+name: Push image to AWS ECR
 
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'main'
+        type: string
 
 jobs:
-
   deploy:
-    name: Build image and deploy to Amazon EKS
+    name: Build image and push AWS
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check repo
+      - name: Check out code
         uses: actions/checkout@v3
-
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v3
         with:
-          version: 'v1.30.0'
-        id: install
-
-      - name: Install kustomize
-        run: curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash && mv kustomize /usr/local/bin/
-
+          ref: ${{ github.event.inputs.branch }}  # Use the selected branch for checkout
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -38,29 +34,14 @@ jobs:
       - name: Load secrets and save to env file
         run: aws secretsmanager get-secret-value --secret-id legalreferral-fanout-env --query SecretString --output text | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > app.env
 
-      - name: Build, tag, and push docker image to Amazon ECR
+      - name: Build, tag, and push docker image to AWS ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: legalreferral-fanout
           IMAGE_TAG: "latest"
           GITHUB_SHA: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build --platform linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push -a $ECR_REGISTRY/$ECR_REPOSITORY
-
-      - name: Update kube config
-        run:  aws eks update-kubeconfig --name legalreferral-fanout --region us-east-1
-
-      - name: Replace image tag in deployment file
-        run: |
-          sed -i "s/{{IMAGE_TAG}}/${{ github.sha }}/g" eks/deployment.yaml
-
-      - name: Deploy image to Amazon EKS
-        run: |
-          kubectl apply -f eks/deployment.yaml
-          kubectl apply -f eks/service.yaml
-          kubectl apply -f eks/issuer.yaml
-          kubectl apply -f eks/ingress.yaml
-          
          
           
