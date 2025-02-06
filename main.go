@@ -36,6 +36,8 @@ func init() {
 	defer connPool.Close() // close db connection
 
 	store = db.NewStore(connPool)
+	// print store object
+	fmt.Println(store)
 
 }
 
