@@ -17,7 +17,17 @@ var (
 	store  db.Store
 )
 
-func init() {
+func handleRequest(ctx context.Context, event json.RawMessage) error {
+	err := api.ConnectConsumer(config, store)
+	if err != nil {
+		log.Error().Err(err).Msg("cannot connect consumer")
+		return err
+	}
+	return nil
+}
+
+func main() {
+
 	log.Info().Msg("Welcome to LegalReferral Fan-out Service")
 
 	cfg, err := util.LoadConfig(".")
@@ -39,17 +49,5 @@ func init() {
 	// print store object
 	fmt.Println(store)
 
-}
-
-func handleRequest(ctx context.Context, event json.RawMessage) error {
-	err := api.ConnectConsumer(config, store)
-	if err != nil {
-		log.Error().Err(err).Msg("cannot connect consumer")
-		return err
-	}
-	return nil
-}
-
-func main() {
 	lambda.Start(handleRequest)
 }
