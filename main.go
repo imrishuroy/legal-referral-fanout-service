@@ -47,7 +47,8 @@ func main() {
 
 	store = db.NewStore(connPool)
 	// print store object
-	fmt.Println(store)
+
+	log.Printf("store object: %v", store)
 
 	lambda.Start(handleRequest)
 }
