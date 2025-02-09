@@ -57,7 +57,33 @@ func handleRequest(ctx context.Context, event json.RawMessage) error {
 	for _, msg := range result.Messages {
 		log.Info().Msgf("Received message: %s", *msg.Body)
 
+		// Unmarshal the message body safely
+		var messageBody map[string]interface{}
+		if err := json.Unmarshal([]byte(*msg.Body), &messageBody); err != nil {
+			log.Error().Err(err).Msg("Failed to unmarshal message body")
+			continue
+		}
+
+		// Extract owner_id safely
+		userID, ok := messageBody["owner_id"].(string)
+		if !ok || userID == "" {
+			log.Error().Msg("Invalid or missing owner_id in message")
+			continue
+		}
+
+		// Extract post_id safely
+		postIDFloat, ok := messageBody["post_id"].(float64)
+		if !ok {
+			log.Error().Msg("Invalid or missing post_id in message")
+			continue
+		}
+		postID := int32(postIDFloat) // Safe conversion
+		log.Info().Msgf("Owner ID: %s, Post ID: %d", userID, postID)
+
 		// Process the message (e.g., store it in DB)
+		if err := publishNewsFeed(ctx, store, userID, postID); err != nil {
+			log.Error().Err(err).Msg("Failed to publish news feed")
+		}
 
 		// Delete the message after processing
 		_, delErr := sqsClient.DeleteMessageWithContext(ctx, &sqs.DeleteMessageInput{
@@ -95,77 +121,31 @@ func main() {
 	lambda.Start(handleRequest)
 }
 
-func main12() {
+func publishNewsFeed(ctx context.Context, store db.Store, userID string, postID int32) error {
+	// Initialize the userIDs slice with the given userID as the first element
+	userIDs := []string{userID}
 
-	log.Info().Msg("Welcome to LegalReferral Fan-out Service")
-
-	cfg, err := util.LoadConfig(".")
+	// Get the list of connected user IDs
+	connectedUserIDs, err := store.ListConnectedUserIDs(context.Background(), userID)
 	if err != nil {
-		log.Error().Err(err).Msg("cannot load config")
+		log.Error().Err(err).Msg("cannot list connected user IDs")
+		return err
 	}
 
-	config = cfg
+	// Append the connected user IDs to the userIDs slice
+	userIDs = append(userIDs, connectedUserIDs...)
 
-	// db connection
-	connPool, err := pgxpool.New(context.Background(), config.DBSource)
+	// Post to the news feed for each user ID
+	for _, id := range userIDs {
+		arg := db.PostToNewsFeedParams{
+			UserID: id,
+			PostID: postID,
+		}
 
-	if err != nil {
-		fmt.Println("cannot connect to db:", err)
+		if err := store.PostToNewsFeed(ctx, arg); err != nil {
+			log.Error().Err(err).Str("userID", id).Msg("cannot post to news feed")
+			return err
+		}
 	}
-	defer connPool.Close() // close db connection
-
-	store = db.NewStore(connPool)
-	// print store object
-
-	log.Printf("store object: %v", store)
-
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-
-	svc := sqs.New(sess)
-
-	result, err := svc.ReceiveMessage(&sqs.ReceiveMessageInput{
-		QueueUrl: aws.String(config.SQSURL),
-	})
-	if err != nil {
-		// Handle error
-	}
-
-	for _, msg := range result.Messages {
-		// Process the received message
-		fmt.Println(*msg.Body)
-	}
-
+	return nil
 }
-
-//func handleRequest(ctx context.Context, event json.RawMessage) error {
-//	log.Info().Msg("Lambda function invoked")
-//
-//	// Connect to consumer
-//	err := api.ConnectConsumer(config, store)
-//	if err != nil {
-//		log.Error().Err(err).Msg("cannot connect consumer")
-//		return err
-//	}
-//	return nil
-//
-//}
-
-// if running locally
-//var wg sync.WaitGroup
-//wg.Add(1) // Add one counter to wait for goroutine
-//
-//go func() {
-//	defer wg.Done() // Decrement counter when goroutine exits
-//	err := api.ConnectConsumer(config, store)
-//	if err != nil {
-//		log.Error().Err(err).Msg("cannot connect consumer")
-//		panic(err)
-//	}
-//}()
-//
-//// Wait for goroutine
-//wg.Wait()
-
-//lambda.Start(handleRequest)
