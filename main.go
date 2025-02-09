@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
 	"os"
+	"strconv"
 )
 
 var (
@@ -42,12 +43,27 @@ func handleRequest2(ctx context.Context, sqsEvent events.SQSEvent) error {
 	for _, message := range sqsEvent.Records {
 		log.Info().Msgf("Message ID: %s", message.MessageId)
 
-		// Decode JSON
-		var postFanOutMsg PostFanOutMsg
-		if err := json.Unmarshal([]byte(message.Body), &postFanOutMsg); err != nil {
+		var rawMsg struct {
+			OwnerID string `json:"owner_id"`
+			PostID  string `json:"post_id"`
+		}
+
+		if err := json.Unmarshal([]byte(message.Body), &rawMsg); err != nil {
 			log.Error().Err(err).Msg("Failed to unmarshal message body")
 			continue
 		}
+
+		postID, err := strconv.Atoi(rawMsg.PostID) // Convert string to int
+		if err != nil {
+			log.Error().Err(err).Msg("Invalid post_id format")
+			continue
+		}
+
+		postFanOutMsg := PostFanOutMsg{
+			OwnerID: rawMsg.OwnerID,
+			PostID:  int32(postID),
+		}
+
 		// Process the message (e.g., store it in DB)
 		if err := publishNewsFeed(ctx, store, postFanOutMsg.OwnerID, postFanOutMsg.PostID); err != nil {
 			log.Error().Err(err).Msg("Failed to publish news feed")
