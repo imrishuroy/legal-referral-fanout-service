@@ -38,7 +38,7 @@ func handleRequest(ctx context.Context, event json.RawMessage) error {
 	log.Info().Msg("Lambda function invoked")
 
 	// print SQS URL
-	fmt.Println("SQS URL: ", config.SQSURL)
+	log.Info().Msg("SQS URL: " + config.SQSURL)
 
 	// Continuous polling loop
 	for {
