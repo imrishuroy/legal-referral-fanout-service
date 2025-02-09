@@ -18,12 +18,16 @@ var (
 )
 
 func handleRequest(ctx context.Context, event json.RawMessage) error {
+	log.Info().Msg("Lambda function invoked")
+
+	// Connect to consumer
 	err := api.ConnectConsumer(config, store)
 	if err != nil {
 		log.Error().Err(err).Msg("cannot connect consumer")
 		return err
 	}
 	return nil
+
 }
 
 func main() {
@@ -49,6 +53,22 @@ func main() {
 	// print store object
 
 	log.Printf("store object: %v", store)
+
+	// if running locally
+	//var wg sync.WaitGroup
+	//wg.Add(1) // Add one counter to wait for goroutine
+	//
+	//go func() {
+	//	defer wg.Done() // Decrement counter when goroutine exits
+	//	err := api.ConnectConsumer(config, store)
+	//	if err != nil {
+	//		log.Error().Err(err).Msg("cannot connect consumer")
+	//		panic(err)
+	//	}
+	//}()
+	//
+	//// Wait for goroutine
+	//wg.Wait()
 
 	lambda.Start(handleRequest)
 }
