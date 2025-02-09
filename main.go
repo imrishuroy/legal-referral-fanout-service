@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -30,6 +31,42 @@ func init() {
 		log.Fatal().Err(err).Msg("Failed to load config")
 		os.Exit(1)
 	}
+}
+
+func handleRequest2(ctx context.Context, sqsEvent events.SQSEvent) error {
+	for _, message := range sqsEvent.Records {
+		log.Info().Msgf("Message ID: %s", message.MessageId)
+
+		// Decode JSON
+		var messageBody map[string]interface{}
+		if err := json.Unmarshal([]byte(message.Body), &messageBody); err != nil {
+			log.Error().Err(err).Msg("Failed to unmarshal message body")
+			continue
+		}
+
+		// Extract owner_id safely
+		userID, ok := messageBody["owner_id"].(string)
+		if !ok || userID == "" {
+			log.Error().Msg("Invalid or missing owner_id in message")
+			continue
+		}
+
+		// Extract post_id safely
+		postIDFloat, ok := messageBody["post_id"].(float64)
+		if !ok {
+			log.Error().Msg("Invalid or missing post_id in message")
+			continue
+		}
+		postID := int32(postIDFloat) // Safe conversion
+		log.Info().Msgf("Owner ID: %s, Post ID: %d", userID, postID)
+
+		// Process the message (e.g., store it in DB)
+		if err := publishNewsFeed(ctx, store, userID, postID); err != nil {
+			log.Error().Err(err).Msg("Failed to publish news feed")
+		}
+	}
+
+	return nil
 }
 
 func handleRequest(ctx context.Context, event json.RawMessage) error {
@@ -118,7 +155,8 @@ func main() {
 	//svc := sqs.New(sess)
 	sqsClient = sqs.New(sess)
 
-	lambda.Start(handleRequest)
+	lambda.Start(handleRequest2)
+
 }
 
 func publishNewsFeed(ctx context.Context, store db.Store, userID string, postID int32) error {
