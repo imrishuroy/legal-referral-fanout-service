@@ -33,35 +33,23 @@ func init() {
 	}
 }
 
+type PostFanOutMsg struct {
+	OwnerID string `json:"owner_id"`
+	PostID  int32  `json:"post_id"`
+}
+
 func handleRequest2(ctx context.Context, sqsEvent events.SQSEvent) error {
 	for _, message := range sqsEvent.Records {
 		log.Info().Msgf("Message ID: %s", message.MessageId)
 
 		// Decode JSON
-		var messageBody map[string]interface{}
-		if err := json.Unmarshal([]byte(message.Body), &messageBody); err != nil {
+		var postFanOutMsg PostFanOutMsg
+		if err := json.Unmarshal([]byte(message.Body), &postFanOutMsg); err != nil {
 			log.Error().Err(err).Msg("Failed to unmarshal message body")
 			continue
 		}
-
-		// Extract owner_id safely
-		userID, ok := messageBody["owner_id"].(string)
-		if !ok || userID == "" {
-			log.Error().Msg("Invalid or missing owner_id in message")
-			continue
-		}
-
-		// Extract post_id safely
-		postIDFloat, ok := messageBody["post_id"].(float64)
-		if !ok {
-			log.Error().Msg("Invalid or missing post_id in message")
-			continue
-		}
-		postID := int32(postIDFloat) // Safe conversion
-		log.Info().Msgf("Owner ID: %s, Post ID: %d", userID, postID)
-
 		// Process the message (e.g., store it in DB)
-		if err := publishNewsFeed(ctx, store, userID, postID); err != nil {
+		if err := publishNewsFeed(ctx, store, postFanOutMsg.OwnerID, postFanOutMsg.PostID); err != nil {
 			log.Error().Err(err).Msg("Failed to publish news feed")
 		}
 	}
