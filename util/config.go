@@ -12,6 +12,7 @@ type Config struct {
 	SASLUsername     string `mapstructure:"SASL_USERNAME"`
 	SASLPassword     string `mapstructure:"SASL_PASSWORD"`
 	Topic            string `mapstructure:"TOPIC"`
+	SQSURL           string `mapstructure:"SQS_URL"`
 }
 
 // LoadConfig reads configuration from file or environment variables

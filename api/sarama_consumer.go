@@ -6,6 +6,7 @@ import (
 	"github.com/IBM/sarama"
 	db "github.com/imrishuroy/legal-referral-fanout-service/db/sqlc"
 	"github.com/imrishuroy/legal-referral-fanout-service/util"
+	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,6 +17,7 @@ func ConnectConsumer(config util.Config, store db.Store) error {
 	topic := "publish-feed"
 	worker, err := createConsumer(config)
 	if err != nil {
+		log.Info().Msg("cannot create consumer")
 		return err
 	}
 	// Calling ConsumePartition. It will open one connection per broker
