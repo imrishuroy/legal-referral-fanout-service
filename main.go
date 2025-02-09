@@ -12,7 +12,7 @@ import (
 	"github.com/imrishuroy/legal-referral-fanout-service/util"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog/log"
-	"time"
+	"os"
 )
 
 var (
@@ -21,65 +21,59 @@ var (
 	sqsClient *sqs.SQS
 )
 
-//func handleRequest(ctx context.Context, event json.RawMessage) error {
-//	log.Info().Msg("Lambda function invoked")
-//
-//	// Connect to consumer
-//	err := api.ConnectConsumer(config, store)
-//	if err != nil {
-//		log.Error().Err(err).Msg("cannot connect consumer")
-//		return err
-//	}
-//	return nil
-//
-//}
+func init() {
+	log.Info().Msg("Initializing LegalReferral Fan-out Service")
+
+	var err error
+	config, err = util.LoadConfig(".")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load config")
+		os.Exit(1)
+	}
+}
 
 func handleRequest(ctx context.Context, event json.RawMessage) error {
 	log.Info().Msg("Lambda function invoked")
 
-	// print SQS URL
-	log.Info().Msg("SQS URL: " + config.SQSURL)
+	// Ensure sqsClient is initialized
+	if sqsClient == nil {
+		log.Error().Msg("SQS client is not initialized")
+		return fmt.Errorf("SQS client is not initialized")
+	}
 
-	// Continuous polling loop
-	for {
-		result, err := sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
-			QueueUrl:            aws.String(config.SQSURL),
-			MaxNumberOfMessages: aws.Int64(10), // Fetch multiple messages
-			WaitTimeSeconds:     aws.Int64(20), // Long polling to reduce API calls
+	log.Info().Msgf("SQS URL: %s", config.SQSURL)
+
+	// Receive messages from SQS
+	result, err := sqsClient.ReceiveMessageWithContext(ctx, &sqs.ReceiveMessageInput{
+		QueueUrl:            aws.String(config.SQSURL),
+		MaxNumberOfMessages: aws.Int64(10),
+		WaitTimeSeconds:     aws.Int64(20),
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("Error receiving message")
+		return err
+	}
+
+	for _, msg := range result.Messages {
+		log.Info().Msgf("Received message: %s", *msg.Body)
+
+		// Process the message (e.g., store it in DB)
+
+		// Delete the message after processing
+		_, delErr := sqsClient.DeleteMessageWithContext(ctx, &sqs.DeleteMessageInput{
+			QueueUrl:      aws.String(config.SQSURL),
+			ReceiptHandle: msg.ReceiptHandle,
 		})
-
-		if err != nil {
-			log.Printf("Error receiving message: %v", err)
-			time.Sleep(5 * time.Second) // Wait before retrying
-			continue
-		}
-
-		for _, msg := range result.Messages {
-			fmt.Println("Received message:", *msg.Body)
-
-			// Process the message (store in DB, etc.)
-
-			// Delete the message after processing
-			_, delErr := sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
-				QueueUrl:      aws.String(config.SQSURL),
-				ReceiptHandle: msg.ReceiptHandle,
-			})
-			if delErr != nil {
-				log.Printf("Failed to delete message: %v", delErr)
-			}
+		if delErr != nil {
+			log.Error().Err(delErr).Msg("Failed to delete message")
 		}
 	}
 
+	return nil
 }
 
 func main() {
 	log.Info().Msg("Welcome to LegalReferral Fan-out Service")
-
-	cfg, err := util.LoadConfig(".")
-	if err != nil {
-		log.Error().Err(err).Msg("cannot load config")
-	}
-	config = cfg
 
 	// db connection
 	connPool, err := pgxpool.New(context.Background(), config.DBSource)
@@ -144,6 +138,19 @@ func main12() {
 	}
 
 }
+
+//func handleRequest(ctx context.Context, event json.RawMessage) error {
+//	log.Info().Msg("Lambda function invoked")
+//
+//	// Connect to consumer
+//	err := api.ConnectConsumer(config, store)
+//	if err != nil {
+//		log.Error().Err(err).Msg("cannot connect consumer")
+//		return err
+//	}
+//	return nil
+//
+//}
 
 // if running locally
 //var wg sync.WaitGroup
