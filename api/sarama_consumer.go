@@ -3,13 +3,14 @@ package api
 import (
 	"crypto/tls"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/IBM/sarama"
 	db "github.com/imrishuroy/legal-referral-fanout-service/db/sqlc"
 	"github.com/imrishuroy/legal-referral-fanout-service/util"
 	"github.com/rs/zerolog/log"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func ConnectConsumer(config util.Config, store db.Store) error {

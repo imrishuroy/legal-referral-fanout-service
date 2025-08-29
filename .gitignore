@@ -7,3 +7,5 @@
 !.elasticbeanstalk/*.global.yml
 
 dist/
+
+/terraform/*
