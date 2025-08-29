@@ -11,14 +11,14 @@ on:
 
 jobs:
   deploy:
-    name: Build image and push AWS
+    name: Build image and push AWS ECR
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out code
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.branch }}  # Use the selected branch for checkout
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -27,12 +27,29 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Login to Amazon ECR
+      - name: Login to AWS ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Ensure jq is installed
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          fi
+
+      - name: Ensure ECR repository exists
+        env:
+          ECR_REPOSITORY: legalreferral-fanout
+        run: |
+          aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" >/dev/null 2>&1 || \
+          aws ecr create-repository --repository-name "$ECR_REPOSITORY" >/dev/null
+
       - name: Load secrets and save to env file
-        run: aws secretsmanager get-secret-value --secret-id legalreferral-fanout-env --query SecretString --output text | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > app.env
+        run: aws secretsmanager get-secret-value --secret-id legalreferral-env --query SecretString --output text | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' > app.env
+
+      - name: Load secrets and save to service-account-key.json
+        run: aws secretsmanager get-secret-value --secret-id legalreferral-service-account-key --query SecretString --output text > service-account-key.json
 
       - name: Build, tag, and push docker image to AWS ECR
         env:
